@@ -1,36 +1,35 @@
 'use strict';
 
 const assert = require('assert');
-
 const debug = require('debug')('client:sdk');
-// const httpx = require('httpx');
+const fs = require('fs');
 const axios = require('axios');
 const kitx = require('kitx');
 const queryString = require('querystring');
-
-// const {
-//     getEndpoint,
-//     toXMLBuffer,
-//     parseXML,
-//     extract,
-//     getResponseHeaders,
-//     getCanonicalizedMNSHeaders
-// } = require('./helper');
+const file = require('async-file');
+const FormData = require('form-data');
 
 class Client {
+
+    /**
+     * 验证是否是错误对象
+     * @param value
+     * @return {boolean}
+     */
+    static isError(value) {
+        return value instanceof Error;
+    }
 
     /**
      *
      * @param {Object} opts
      * @param {String} opts.accessKeyID
      * @param {String} opts.accessKeySecret
-     * @param {String} opts.securityToken
      * @param {String} opts.domain
      */
     constructor(opts) {
         assert(opts, 'must pass in "opts"');
-
-        const { accessKeyID, accessKeySecret, securityToken, domain } = opts;
+        const { accessKeyID, accessKeySecret, domain } = opts;
 
         assert(accessKeyID, 'must pass in "opts.accessKeyID"');
         this.accessKeyID = accessKeyID;
@@ -39,19 +38,16 @@ class Client {
         this.accessKeySecret = accessKeySecret;
 
         this.domain = domain;
-
-        // security token
-        this.securityToken = securityToken;
     }
 
     async request(method, uri, requestBody, urlParams, opts = {}) {
-
         const url = `${this.domain}${uri}`;
+
         debug('url: %s', url);
         debug('method: %s', method);
         const headers = this.buildHeaders(method, requestBody, uri, opts.headers || {});
 
-        // debug('request headers: %j', headers);
+        debug('request headers: %j', headers);
         requestBody && debug('request body: %s', requestBody.toString());
 
         const response = await axios(Object.assign(opts, {
@@ -60,104 +56,145 @@ class Client {
             headers: headers,
             params: urlParams,
             data: requestBody
-        }));
+        })).then(resp => resp.data).catch(e => e);
 
         return response;
-
-
-        debug('statusCode %s', response.statusCode);
-        debug('response headers: %j', response.headers);
-        const code = response.statusCode;
-
-        const contentType = response.headers['content-type'] || '';
-        const responseBody = await httpx.read(response, 'utf8');
-        debug('response body: %s', responseBody);
-
-        var body;
-        if (responseBody && contentType.startsWith('text/xml')) {
-            const responseData = await parseXML(responseBody);
-
-            if (responseData.Error) {
-                const e = responseData.Error;
-                const message = extract(e.Message);
-                const requestid = extract(e.RequestId);
-                const hostid = extract(e.HostId);
-                const err = new Error(`${method} ${url} failed with ${code}. ` +
-                    `requestid: ${requestid}, hostid: ${hostid}, message: ${message}`);
-                err.name = 'MNS' + extract(e.Code) + err.name;
-                throw err;
-            }
-
-            body = {};
-            Object.keys(responseData[type]).forEach((key) => {
-                if (key !== '$') {
-                body[key] = extract(responseData[type][key]);
-            }
-        });
-        }
-
-        return {
-            code,
-            headers: getResponseHeaders(response.headers, attentions),
-            body: body
-        };
     }
 
-    get(uri, params = {}, opts = {}) {
+    /**
+     * rest get method
+     * @param {String} uri
+     * @param {Object} params
+     * @param {Object} opts
+     * @return {Promise<void>}
+     */
+    async get(uri, params = {}, opts = {}) {
 
-        return this.request('GET', uri, null, params, opts);
+        return await this.request('GET', uri, null, params, opts);
     }
 
-    put(uri, body, opts = {}) {
-        opts = Object.assign({
-            headers:{
-                "Content-Type":'application/json'
-            }
-        }, opts);
-
-        return this.request('PUT', uri, body, {}, opts);
-    }
-
-    post(uri, body = {}, opts = {}) {
+    /**
+     * rest post method
+     * @param {String} uri
+     * @param {Object} body
+     * @param {Object} opts
+     * @return {Promise<void>}
+     */
+    async post(uri, body = {}, opts = {}) {
         opts = Object.assign({
             headers:{
                 "Content-Type": 'application/x-www-form-urlencoded'
             }
         }, opts);
-        return this.request('POST', uri, queryString.stringify(body), {}, opts);
+
+        return await this.request('POST', uri, queryString.stringify(body), {}, opts);
     }
 
-    delete(uri, body, opts = {}) {
+    /**
+     * rest postJson method
+     * @param {String} uri
+     * @param {Object} body
+     * @param {Object} opts
+     * @return {Promise<void>}
+     */
+    async postJson(uri, body = {}, opts = {}) {
         opts = Object.assign({
             headers:{
-                "Content-Type":'application/json'
+                "Content-Type": 'application/json'
             }
         }, opts);
 
-        return this.request('DELETE', uri, body, {}, opts);
+        return await this.request('POST', uri, body, {}, opts);
     }
 
-    // 生成签名
-    sign(method, headers, uri) {
-        const md5 = headers['x-content-md5'] || '';
-        const date = headers['x-date'];
+    /**
+     * rest put method
+     * @param {String} uri
+     * @param {Object} body
+     * @param {Object} opts
+     * @return {Promise<void>}
+     */
+    async put(uri, body = {}, opts = {}) {
+        opts = Object.assign({
+            headers:{
+                "Content-Type": 'application/json'
+            }
+        }, opts);
 
-        const toSignString = `${method}\n${md5}\n${date}\n${uri}`;
-
-        const buff = Buffer.from(toSignString, 'utf8');
-        const degist = kitx.sha1(buff, this.accessKeySecret, 'binary');
-        return Buffer.from(degist, 'binary').toString('base64');
+        return await this.request('PUT', uri, body, {}, opts);
     }
 
-    buildHeaders(method, body, uri, customHeaders) {
+    /**
+     * rest delete method
+     * @param {String} uri
+     * @param {Object} body
+     * @param {Object} opts
+     * @return {Promise<void>}
+     */
+    async delete(uri, body = {}, opts = {}) {
+        opts = Object.assign({
+            headers:{
+                "Content-Type": 'application/json'
+            }
+        }, opts);
+
+        return await this.request('DELETE', uri, body, {}, opts);
+    }
+
+    /**
+     * upload file (default Content-Type:multipart/form-data)
+     * 支持多文件上传
+     *
+     * @param {String} uri
+     * @param {Object} params {file1:"文件路径",...}
+     * @param {Object} [opts]
+     * @returns {Promise.<*>}
+     *
+     * usage:
+     *  const resp = await restClient.upload("http://localhost:3001/homeDisposeUpload",{
+        file1:__dirname + '/../static/img/meinv1.jpg',
+        file2:__dirname + '/../static/img/meinv2.jpg',
+        field1:"test"
+    });
+     */
+    async upload(uri, params, opts = {}) {
+        if (!params) return new Error("parameter does not exist");
+
+        let form = new FormData();
+
+        for (let [k, v] of Object.entries(params)) {
+            if (typeof v === 'string' && await file.exists(v)) {
+                form.append(k, fs.createReadStream(v));
+            } else {
+                form.append(k, v);
+            }
+        }
+
+        const headers = form.getHeaders();
+
+        return await this.request('POST', uri, form, {}, Object.assign({
+                headers: {
+                    "Content-Type": headers['content-type']
+                }
+            }, opts));
+    }
+
+    /**
+     * 生成header
+     * @param method
+     * @param body
+     * @param uri
+     * @param customHeaders
+     * @return {{"x-date": *, "x-host": String|*}}
+     */
+    buildHeaders(method, body, uri, customHeaders = {}) {
         const date = new Date().toGMTString();
-
         const headers = {
             'x-date': date,
             'x-host': this.domain,
         };
 
-        if (method !== 'GET' && method !== 'HEAD') {
+        if (method !== 'GET' && method !== 'HEAD' && !(customHeaders['Content-Type'].indexOf('multipart/form-data') > -1)) {
             const digest = kitx.md5(body.toString(), 'hex');
             const md5 = Buffer.from(digest, 'utf8').toString('base64');
 
@@ -173,6 +210,25 @@ class Client {
         headers['authorization'] = `${this.accessKeyID}:${signature}`;
 
         return headers;
+    }
+
+
+    /**
+     * 生成签名
+     * @param {String} method
+     * @param {Object} headers
+     * @param {String} uri
+     * @return {string}
+     */
+    sign(method, headers, uri) {
+        const md5 = headers['x-content-md5'] || '';
+        const date = headers['x-date'];
+
+        const toSignString = `${method}\n${md5}\n${date}\n${uri}`;
+
+        const buff = Buffer.from(toSignString, 'utf8');
+        const degist = kitx.sha1(buff, this.accessKeySecret, 'binary');
+        return Buffer.from(degist, 'binary').toString('base64');
     }
 }
 
