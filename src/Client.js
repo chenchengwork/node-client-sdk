@@ -56,7 +56,7 @@ class Client {
             headers: headers,
             params: urlParams,
             data: requestBody
-        })).then(resp => resp.data).catch(e => e);
+        })).then(resp => resp.data).catch(e => Client.isError(e) ? e : new Error(e));
 
         return response;
     }
