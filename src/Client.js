@@ -3,7 +3,7 @@
 const assert = require('assert');
 const debug = require('debug')('client:sdk');
 const fs = require('fs');
-const axios = require('axios');
+const axios = require('tj-axios');
 const kitx = require('kitx');
 const queryString = require('querystring');
 const file = require('async-file');
@@ -148,6 +148,7 @@ class Client {
      * @param {String} uri
      * @param {Object} params {file1:"文件路径",...}
      * @param {Object} [opts]
+     * @param {Object} [formOpts] https://github.com/felixge/node-combined-stream/blob/master/lib/combined_stream.js#L7-L15
      * @returns {Promise.<*>}
      *
      * usage:
@@ -157,10 +158,10 @@ class Client {
         field1:"test"
     });
      */
-    async upload(uri, params, opts = {}) {
+    async upload(uri, params, opts = {maxBodyLength: 200 * 1024 * 1024}, formOpts = { maxDataSize: 500 * 1024 * 1024 }) {
         if (!params) return new Error("parameter does not exist");
 
-        let form = new FormData();
+        let form = new FormData(formOpts);
 
         for (let [k, v] of Object.entries(params)) {
             if (typeof v === 'string' && await file.exists(v)) {
