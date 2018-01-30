@@ -40,12 +40,17 @@ class Client {
         this.domain = domain;
     }
 
-    async request(method, uri, requestBody, urlParams, opts = {}) {
+    async request(method, uri, requestBody, urlParams = {}, opts = {}) {
         const url = `${this.domain}${uri}`;
 
         debug('url: %s', url);
         debug('method: %s', method);
-        const headers = this.buildHeaders(method, requestBody, uri, opts.headers || {});
+        const headers = this.buildHeaders(
+            method,
+            requestBody,
+            Object.keys(urlParams).length > 0 ? `${uri}?${queryString.stringify(urlParams)}` : uri,
+            opts.headers || {}
+        );
 
         debug('request headers: %j', headers);
         requestBody && debug('request body: %s', requestBody.toString());
@@ -184,11 +189,11 @@ class Client {
      * 生成header
      * @param method
      * @param body
-     * @param uri
+     * @param url
      * @param customHeaders
      * @return {{"x-date": *, "x-host": String|*}}
      */
-    buildHeaders(method, body, uri, customHeaders = {}) {
+    buildHeaders(method, body, url, customHeaders = {}) {
         const date = new Date().toGMTString();
         const headers = {
             'x-date': date,
@@ -206,7 +211,7 @@ class Client {
 
         Object.assign(headers, customHeaders);
 
-        const signature = this.sign(method, headers, uri);
+        const signature = this.sign(method, headers, url);
 
         headers['authorization'] = `${this.accessKeyID}:${signature}`;
 
@@ -218,14 +223,14 @@ class Client {
      * 生成签名
      * @param {String} method
      * @param {Object} headers
-     * @param {String} uri
+     * @param {String} url
      * @return {string}
      */
-    sign(method, headers, uri) {
+    sign(method, headers, url) {
         const md5 = headers['x-content-md5'] || '';
         const date = headers['x-date'];
 
-        const toSignString = `${method}\n${md5}\n${date}\n${uri}`;
+        const toSignString = `${method}\n${md5}\n${date}\n${url}`;
 
         const buff = Buffer.from(toSignString, 'utf8');
         const degist = kitx.sha1(buff, this.accessKeySecret, 'binary');

@@ -10,8 +10,7 @@ describe('client test', function() {
                 domain: "http://localhost:8360",
             });
 
-            const resp = await client.get('/openAPI/test/get', {a:1});
-            console.log(resp);
+            const resp = await client.get('/openAPI/test/get', {a:1111111});
             assert.ok(!Client.isError(resp));
         });
     });
@@ -24,7 +23,7 @@ describe('client test', function() {
                 domain: "http://localhost:8360",
             });
 
-            const resp = await client.post('/openAPI/test/post', {a: 11});
+            const resp = await client.post('/openAPI/test/post?b=1', {a: 11});
             assert.ok(!Client.isError(resp));
         });
     });
