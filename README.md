@@ -11,6 +11,7 @@ Node > 8.9.1
 const Client = require("node-client-sdk");
 
 const client = new Client({
+    isEncrypt: true,            // 是否开启加密, 不加密时可忽律accessKeyID, accessKeySecret
     accessKeyID: "a04d0daa30fbad5191d794f527084441",
     accessKeySecret: "6788991a041734cb794e934f470650f1",
     domain: "http://localhost",
@@ -33,7 +34,10 @@ const result = await client.delete('/openAPI/test/delete', {a: 11});
 // Content-Type: 'multipart/form-data'
 const result = await client.upload('/openAPI/test/upload', {a: 11, file: path.resolve('./package.json')});
 
-if (Client.isError(resp)) throw result
+/ Content-Type: 'multipart/octet-stream'
+const result = await client.uploadBinary('/openAPI/test/uploadBinary', path.resolve('./package.json'));
+
+if (Client.isError(result)) throw result
 
 console.log(result);
 

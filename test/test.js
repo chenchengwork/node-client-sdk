@@ -80,4 +80,17 @@ describe('client test', function() {
         });
     });
 
+    describe('#upload', function() {
+        it('test upload file', async function() {
+            const client = new Client({
+                accessKeyID: "a04d0daa30fbad5191d794f527084446",
+                accessKeySecret: "6788991a041734cb794e934f470650f4",
+                domain: "http://localhost:8360",
+            });
+
+            const resp = await client.uploadBinary('/openAPI/test/upload', path.resolve('./package.json'));
+            assert.ok(!Client.isError(resp));
+        });
+    });
+
 });

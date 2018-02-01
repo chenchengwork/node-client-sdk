@@ -26,15 +26,20 @@ class Client {
      * @param {String} opts.accessKeyID
      * @param {String} opts.accessKeySecret
      * @param {String} opts.domain
+     * @param {Boolean} opts.isEncrypt     // 是否加密
      */
-    constructor(opts) {
+    constructor(opts = {}) {
+        opts = Object.assign({isEncrypt: true}, opts);
+
         assert(opts, 'must pass in "opts"');
         const { accessKeyID, accessKeySecret, domain } = opts;
 
-        assert(accessKeyID, 'must pass in "opts.accessKeyID"');
+        this.isEncrypt = opts.isEncrypt;
+
+        if(this.isEncrypt) assert(accessKeyID, 'must pass in "opts.accessKeyID"');
         this.accessKeyID = accessKeyID;
 
-        assert(accessKeySecret, 'must pass in "opts.accessKeySecret"');
+        if(this.isEncrypt) assert(accessKeySecret, 'must pass in "opts.accessKeySecret"');
         this.accessKeySecret = accessKeySecret;
 
         this.domain = domain;
@@ -45,12 +50,12 @@ class Client {
 
         debug('url: %s', url);
         debug('method: %s', method);
-        const headers = this.buildHeaders(
+        const headers = this.isEncrypt ? this.buildHeaders(
             method,
             requestBody,
             Object.keys(urlParams).length > 0 ? `${uri}?${queryString.stringify(urlParams)}` : uri,
             opts.headers || {}
-        );
+        ) : opts.headers;
 
         debug('request headers: %j', headers);
         requestBody && debug('request body: %s', requestBody.toString());
@@ -180,9 +185,30 @@ class Client {
 
         return await this.request('POST', uri, form, {}, Object.assign({
                 headers: {
-                    "Content-Type": headers['content-type']
+                    "Content-Type": headers['content-type'],
+                    maxBodyLength: 200 * 1024 * 1024
                 }
             }, opts));
+    }
+
+
+    /**
+     * upload file (default Content-Type:application/octet-stream)
+     *
+     * @param {String} uri
+     * @param {String} filePath
+     * @param {Object} opts
+     * @returns {Promise.<*>}
+     */
+    async uploadBinary(uri, filePath, opts = {}){
+        opts = Object.assign({
+            headers: {
+                "Content-Type": "application/octet-stream",
+                maxBodyLength: 200 * 1024 * 1024
+            },
+        },opts);
+
+        return await this.request('POST', uri, fs.createReadStream(filePath), {}, opts);
     }
 
     /**
