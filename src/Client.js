@@ -3,7 +3,7 @@
 const assert = require('assert');
 const debug = require('debug')('client:sdk');
 const fs = require('fs');
-const axios = require('tj-axios');
+const axios = require('axios');
 const kitx = require('kitx');
 const queryString = require('querystring');
 const file = require('async-file');
@@ -168,7 +168,7 @@ class Client {
         field1:"test"
     });
      */
-    async upload(uri, params, opts = {maxBodyLength: 200 * 1024 * 1024}, formOpts = { maxDataSize: 500 * 1024 * 1024 }) {
+    async upload(uri, params, opts = {maxContentLength: 200 * 1024 * 1024}, formOpts = { maxDataSize: 500 * 1024 * 1024 }) {
         if (!params) return new Error("parameter does not exist");
 
         let form = new FormData(formOpts);
@@ -186,7 +186,7 @@ class Client {
         return await this.request('POST', uri, form, {}, Object.assign({
                 headers: {
                     "Content-Type": headers['content-type'],
-                    maxBodyLength: 200 * 1024 * 1024
+                    maxContentLength: 200 * 1024 * 1024
                 }
             }, opts));
     }
