@@ -186,8 +186,8 @@ class Client {
         return await this.request('POST', uri, form, {}, Object.assign({
                 headers: {
                     "Content-Type": headers['content-type'],
-                    maxContentLength: 200 * 1024 * 1024
-                }
+                },
+                maxContentLength: 200 * 1024 * 1024
             }, opts));
     }
 
@@ -204,8 +204,8 @@ class Client {
         opts = Object.assign({
             headers: {
                 "Content-Type": "application/octet-stream",
-                maxBodyLength: 200 * 1024 * 1024
             },
+            maxContentLength: 200 * 1024 * 1024
         },opts);
 
         return await this.request('POST', uri, fs.createReadStream(filePath), {}, opts);
