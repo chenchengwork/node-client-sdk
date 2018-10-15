@@ -8,6 +8,13 @@ const kitx = require('kitx');
 const queryString = require('querystring');
 const file = require('async-file');
 const FormData = require('form-data');
+const deepmergeOrigin = require("deepmerge");
+
+/**
+ * 深度合并对象
+ * 文档说明: https://github.com/KyleAMathews/deepmerge
+ */
+const deepmerge = (...rest) => deepmergeOrigin.all(rest, {arrayMerge: (destinationArray, sourceArray, options) => sourceArray});
 
 class Client {
 
@@ -91,7 +98,7 @@ class Client {
      * @return {Promise<void>}
      */
     async post(uri, body = {}, opts = {}) {
-        opts = Object.assign({
+        opts = deepmerge({
             headers:{
                 "Content-Type": 'application/x-www-form-urlencoded'
             }
@@ -108,7 +115,7 @@ class Client {
      * @return {Promise<void>}
      */
     async postJson(uri, body = {}, opts = {}) {
-        opts = Object.assign({
+        opts = deepmerge({
             headers:{
                 "Content-Type": 'application/json'
             }
@@ -125,7 +132,7 @@ class Client {
      * @return {Promise<void>}
      */
     async put(uri, body = {}, opts = {}) {
-        opts = Object.assign({
+        opts = deepmerge({
             headers:{
                 "Content-Type": 'application/json'
             }
@@ -142,7 +149,7 @@ class Client {
      * @return {Promise<void>}
      */
     async delete(uri, body = {}, opts = {}) {
-        opts = Object.assign({
+        opts = deepmerge({
             headers:{
                 "Content-Type": 'application/json'
             }
@@ -183,7 +190,7 @@ class Client {
 
         const headers = form.getHeaders();
 
-        return await this.request('POST', uri, form, {}, Object.assign({
+        return await this.request('POST', uri, form, {}, deepmerge({
                 headers: {
                     "Content-Type": headers['content-type'],
                 },
@@ -201,7 +208,7 @@ class Client {
      * @returns {Promise.<*>}
      */
     async uploadBinary(uri, filePath, opts = {}){
-        opts = Object.assign({
+        opts = deepmerge({
             headers: {
                 "Content-Type": "application/octet-stream",
             },
